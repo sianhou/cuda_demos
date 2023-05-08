@@ -1,3 +1,7 @@
+#include "random"
+#include "iostream"
+
+#include "cuda_runtime.h"
 #include "test.cuh"
 #include "fstream"
 #include "iomanip"
@@ -75,7 +79,7 @@ int main() {
     Result res;
     std::ofstream ofs("sgemm_v1.txt");
 
-    for (int s = 128; s <= 4096; s += 32) {
+    for (int s = 1024; s <= 1024; s += 32) {
         res = test_cugemm(s, 8, 10);
 
         ofs << std::setw(4) << res.size << " ";

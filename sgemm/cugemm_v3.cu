@@ -1,73 +1,111 @@
-#include "iostream"
-#include "vector"
+#include "test.cuh"
+#include "fstream"
 #include "iomanip"
 
-#include "test.cuh"
+#define smA(i, j) shared_a[j][i]
+#define smB(i, j) shared_b[j][i]
 
-template<int BLK, int STRIDE>
+template<int BLK>
 __global__ void sgemm(const float *a, const float *b, float *c, int M, int N, int K) {
-  int ty = threadIdx.y;
-  int tx = threadIdx.x;
-  int by = blockIdx.y;
-  int bx = blockIdx.x;
+    int ty = blockIdx.y * blockDim.y + threadIdx.y;
+    int tx = blockIdx.x * blockDim.x + threadIdx.x;
+    int lty = threadIdx.y;
+    int ltx = threadIdx.x;
+    int by = blockIdx.y;
+    int bx = blockIdx.x;
 
-  constexpr int STEP = STRIDE*BLK;
+    __shared__ __align__(16 * 1024) float shared_a[BLK][BLK];
+    __shared__ __align__(16 * 1024) float shared_b[BLK][BLK];
 
-  __shared__ float shared_a[STEP][STEP];
-  __shared__ float shared_b[STEP][STEP];
+    const float *ptr_a = a + bx * BLK;
+    const float *ptr_b = b + by * BLK * K;
+    float sum = 0.f;
 
-  const float *ptr_a = a + by*STEP*K;
-  const float *ptr_b = b + bx*STEP;
-  float *ptr_c = c + by*STEP*N + bx*STEP;
-  float sum[STRIDE][STRIDE] = {0.f};
+    for (int kk = 0; kk < K; kk += BLK) {
+        smA(ltx, lty) = ptr_a[ltx + lty * M];
+        smB(ltx, lty) = ptr_b[ltx + lty * K];
+        __syncthreads();
 
-  for (int kk = 0; kk < K; kk += STEP) {
-
-	for (int j = 0; j < STRIDE; ++j) {
-	  for (int i = 0; i < STRIDE; ++i) {
-		shared_a[j*BLK + ty][i*BLK + tx] = ptr_a[(j*BLK + ty)*K + i*BLK + tx];
-		shared_b[j*BLK + ty][i*BLK + tx] = ptr_b[(j*BLK + ty)*K + i*BLK + tx];
-	  }
-	}
-	__syncthreads();
 #pragma unroll
+        for (int i = 0; i < BLK; ++i) {
+            sum += smA(ltx, i) * smB(i, lty);
+        }
+        __syncthreads();
 
-	for (int j = 0; j < STRIDE; ++j) {
-	  for (int i = 0; i < STRIDE; ++i) {
-		for (int b = 0; b < STEP; ++b) {
-		  sum[j][i] += shared_a[j*BLK + ty][b]*shared_b[b][i*BLK + tx];
-		}
-	  }
-	}
-	__syncthreads();
+        ptr_a += BLK * M;
+        ptr_b += BLK;
+    }
+    c[tx + ty * M] = sum;
+}
 
-	ptr_a += STEP;
-	ptr_b += STEP*N;
-  }
-  for (int j = 0; j < STRIDE; ++j) {
-	for (int i = 0; i < STRIDE; ++i) {
-	  ptr_c[(j*BLK + ty)*K + i*BLK + tx] = sum[j][i];
-	}
-  }
-  __syncthreads();
+template<int BLK>
+Result test_cugemm(int size, int blk, int niter) {
+
+    int M = size, N = size, K = size;
+    dim3 grid, block;
+    Result res;
+    float sum_of_time, sum_of_gfops;
+    res.size = size;
+
+    Test test(sgemm<BLK>, M, N, K);
+
+    block.y = blk;
+    block.x = blk;
+
+    grid.y = (M + block.y - 1) / block.y;
+    grid.x = (N + block.x - 1) / block.x;
+
+    std::cout << "M = N = K = " << size << std::endl;
+    std::cout << "grid.z x grid.y x grid.x = " << grid.z << " x " << grid.y << " x " << grid.x << std::endl;
+    std::cout << "block.z x block.y x block.x = " << block.z << " x " << block.y << " x " << block.x << std::endl;
+
+    // warm up and check out
+    test.CheckResult(grid, block);
+
+    // cublas
+    test.RunCublas(niter);
+    std::cout << std::endl << "cublas:" << std::endl;
+    sum_of_time = 0;
+    sum_of_gfops = 0;
+    for (int i = 0; i < niter; ++i) {
+        std::cout << i << ": runtime = " << test.watch[i] << ", gflops = " << test.gflops[i] << std::endl;
+        sum_of_time += test.watch[i];
+        sum_of_gfops += test.gflops[i];
+    }
+    res.elapsed_cublas = sum_of_time / niter;
+    res.gflops_cublas = sum_of_gfops / niter;
+
+    // sgemm
+    test.RunSgemm(grid, block, niter);
+    std::cout << std::endl << "sgemm:" << std::endl;
+    sum_of_time = 0;
+    sum_of_gfops = 0;
+    for (int i = 0; i < niter; ++i) {
+        std::cout << i << ": runtime = " << test.watch[i] << ", gflops = " << test.gflops[i] << std::endl;
+        sum_of_time += test.watch[i];
+        sum_of_gfops += test.gflops[i];
+    }
+    res.elapsed_sgemm = sum_of_time / niter;
+    res.gflops_sgemm = sum_of_gfops / niter;
+
+    return res;
 }
 
 int main() {
-  {
-	std::vector<float> time;
-	MultiSizeTest<4, 4, 2, 2>(sgemm<4, 2>, time);
-  }
-  {
-	std::vector<float> time;
-	MultiSizeTest<8, 8, 2, 2>(sgemm<8, 2>, time);
-  }
-  {
-	std::vector<float> time;
-	MultiSizeTest<16, 16, 2, 2>(sgemm<16, 2>, time);
-  }
-  {
-	std::vector<float> time;
-	MultiSizeTest<32, 32, 2, 2>(sgemm<32, 2>, time);
-  }
+    Result res;
+    std::ofstream ofs("sgemm_v2.txt");
+
+    for (int s = 1024; s <= 1024; s += 32) {
+        res = test_cugemm<16>(s, 16, 10);
+
+        ofs << std::setw(4) << res.size << " ";
+        ofs << std::setiosflags(std::ios::fixed) << std::setprecision(2);
+        ofs << std::setw(8) << res.elapsed_cublas << " ";
+        ofs << std::setw(8) << res.gflops_cublas << " ";
+        ofs << std::setw(8) << res.elapsed_sgemm << " ";
+        ofs << std::setw(8) << res.gflops_sgemm << std::endl;
+    }
+
+    ofs.close();
 }
 
