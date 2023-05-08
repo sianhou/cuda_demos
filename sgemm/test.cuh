@@ -112,6 +112,7 @@ struct Test {
       cudaFree(d_C);
 
   }
+
   void RunCublas(int niter) {
 
       watch.clear();
