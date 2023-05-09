@@ -207,7 +207,7 @@ struct Test {
                   d_C,
                   ldc);
       if ((err_ = cudaMemcpy(h_R, d_C, M * N * sizeof(float), cudaMemcpyDeviceToHost)) != cudaSuccess) {
-          std::cout << "Failed to copy dato from device memory: "
+          std::cout << "Failed to copy data from device memory: "
                     << cudaGetErrorString(err_) << std::endl;
           exit(EXIT_FAILURE);
       }
@@ -215,7 +215,7 @@ struct Test {
 
       // run sgemm
       if ((err_ = cudaMemcpy(d_C, h_C, M * N * sizeof(float), cudaMemcpyHostToDevice)) != cudaSuccess) {
-          std::cout << "Failed to copy dato to device memory: "
+          std::cout << "Failed to copy data to device memory: "
                     << cudaGetErrorString(err_) << std::endl;
           exit(EXIT_FAILURE);
       }
@@ -226,7 +226,7 @@ struct Test {
                              N,
                              K);
       if ((err_ = cudaMemcpy(h_C, d_C, M * N * sizeof(float), cudaMemcpyDeviceToHost)) != cudaSuccess) {
-          std::cout << "Failed to copy dato from device memory: "
+          std::cout << "Failed to copy data from device memory: "
                     << cudaGetErrorString(err_) << std::endl;
           exit(EXIT_FAILURE);
       }

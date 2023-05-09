@@ -93,7 +93,7 @@ Result test_cugemm(int size, int blk, int niter) {
 
 int main() {
     Result res;
-    std::ofstream ofs("sgemm_v2.txt");
+    std::ofstream ofs("sgemm_v3.txt");
 
     for (int s = 1024; s <= 1024; s += 32) {
         res = test_cugemm<16>(s, 16, 10);
