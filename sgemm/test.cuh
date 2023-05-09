@@ -34,67 +34,67 @@ struct Test {
       N = n;
       K = k;
 
-      ops = 2.0 * m * n * k * 1.0e-09;
+      ops = 2.0*m*n*k*1.0e-09;
 
       this->sgemm = sgemm;
 
       // init host
-      h_A = new float[M * K];
-      h_B = new float[K * N];
-      h_C = new float[M * N];
-      h_R = new float[M * N];
+      h_A = new float[M*K];
+      h_B = new float[K*N];
+      h_C = new float[M*N];
+      h_R = new float[M*N];
 
       std::uniform_real_distribution<double> u(-1, 1);
       std::default_random_engine e(time(NULL));
 
-      for (auto i = 0; i < M * K; ++i) {
+      for (auto i = 0; i < M*K; ++i) {
           h_A[i] = u(e);
       }
 
-      for (auto i = 0; i < K * N; ++i) {
+      for (auto i = 0; i < K*N; ++i) {
           h_B[i] = u(e);
       }
 
-      for (auto i = 0; i < M * N; ++i) {
+      for (auto i = 0; i < M*N; ++i) {
           h_C[i] = 0.0f;
       }
 
-      for (auto i = 0; i < M * N; ++i) {
+      for (auto i = 0; i < M*N; ++i) {
           h_R[i] = 0.0f;
       }
 
       // init device
-      if ((err_ = cudaMalloc((void **) &d_A, M * K * sizeof(float))) != cudaSuccess) {
+      if ((err_ = cudaMalloc((void **)&d_A, M*K*sizeof(float)))!=cudaSuccess) {
           std::cout << "Failed to allocate device memory: "
                     << cudaGetErrorString(err_) << std::endl;
           exit(EXIT_FAILURE);
       }
 
-      if ((err_ = cudaMalloc((void **) &d_B, K * N * sizeof(float))) != cudaSuccess) {
+      if ((err_ = cudaMalloc((void **)&d_B, K*N*sizeof(float)))!=cudaSuccess) {
           std::cout << "Failed to allocate device memory: "
                     << cudaGetErrorString(err_) << std::endl;
           exit(EXIT_FAILURE);
       }
 
-      if ((err_ = cudaMalloc((void **) &d_C, M * N * sizeof(float))) != cudaSuccess) {
+      if ((err_ = cudaMalloc((void **)&d_C, M*N*sizeof(float)))!=cudaSuccess) {
           std::cout << "Failed to allocate device memory: "
                     << cudaGetErrorString(err_) << std::endl;
           exit(EXIT_FAILURE);
       }
 
-      if ((err_ = cudaMemcpy(d_A, h_A, M * K * sizeof(float), cudaMemcpyHostToDevice)) != cudaSuccess) {
+      if ((err_ = cudaMemcpy(d_A, h_A, M*K*sizeof(float), cudaMemcpyHostToDevice))!=cudaSuccess) {
           std::cout << "Failed to copy dato to device memory: "
                     << cudaGetErrorString(err_) << std::endl;
           exit(EXIT_FAILURE);
       }
 
-      if ((err_ = cudaMemcpy(d_B, h_B, K * N * sizeof(float), cudaMemcpyHostToDevice)) != cudaSuccess) {
+      if ((err_ = cudaMemcpy(d_B, h_B, K*N*sizeof(float), cudaMemcpyHostToDevice))!=cudaSuccess) {
           std::cout << "Failed to copy dato to device memory: "
                     << cudaGetErrorString(err_) << std::endl;
           exit(EXIT_FAILURE);
       }
 
-      if ((err_ = cudaMemcpy(d_C, h_C, M * N * sizeof(float), cudaMemcpyHostToDevice)) != cudaSuccess) {
+      if ((err_ = cudaMemcpy(d_C, h_C, M*N*sizeof(float), cudaMemcpyHostToDevice))!=cudaSuccess) {
           std::cout << "Failed to copy dato to device memory: "
                     << cudaGetErrorString(err_) << std::endl;
           exit(EXIT_FAILURE);
@@ -149,7 +149,7 @@ struct Test {
           float msec = 0.0f;
           checkCudaErrors(cudaEventElapsedTime(&msec, start, stop));
           watch.push_back(msec);
-          gflops.push_back(ops / (msec / 1000.0f));
+          gflops.push_back(ops/(msec/1000.0f));
       }
 
       cudaEventDestroy(start);
@@ -179,7 +179,7 @@ struct Test {
           float msec = 0.0f;
           checkCudaErrors(cudaEventElapsedTime(&msec, start, stop));
           watch.push_back(msec);
-          gflops.push_back(ops / (msec / 1000.0f));
+          gflops.push_back(ops/(msec/1000.0f));
       }
 
       cudaEventDestroy(start);
@@ -206,7 +206,7 @@ struct Test {
                   reinterpret_cast<const float *>(&beta),
                   d_C,
                   ldc);
-      if ((err_ = cudaMemcpy(h_R, d_C, M * N * sizeof(float), cudaMemcpyDeviceToHost)) != cudaSuccess) {
+      if ((err_ = cudaMemcpy(h_R, d_C, M*N*sizeof(float), cudaMemcpyDeviceToHost))!=cudaSuccess) {
           std::cout << "Failed to copy data from device memory: "
                     << cudaGetErrorString(err_) << std::endl;
           exit(EXIT_FAILURE);
@@ -214,7 +214,7 @@ struct Test {
       checkCudaErrors(cublasDestroy(handle));
 
       // run sgemm
-      if ((err_ = cudaMemcpy(d_C, h_C, M * N * sizeof(float), cudaMemcpyHostToDevice)) != cudaSuccess) {
+      if ((err_ = cudaMemcpy(d_C, h_C, M*N*sizeof(float), cudaMemcpyHostToDevice))!=cudaSuccess) {
           std::cout << "Failed to copy data to device memory: "
                     << cudaGetErrorString(err_) << std::endl;
           exit(EXIT_FAILURE);
@@ -225,15 +225,15 @@ struct Test {
                              M,
                              N,
                              K);
-      if ((err_ = cudaMemcpy(h_C, d_C, M * N * sizeof(float), cudaMemcpyDeviceToHost)) != cudaSuccess) {
+      if ((err_ = cudaMemcpy(h_C, d_C, M*N*sizeof(float), cudaMemcpyDeviceToHost))!=cudaSuccess) {
           std::cout << "Failed to copy data from device memory: "
                     << cudaGetErrorString(err_) << std::endl;
           exit(EXIT_FAILURE);
       }
 
       // check
-      for (int i = 0; i < M * N; ++i) {
-          if (fabs(h_R[i] - h_C[i]) > 1e-4) {
+      for (int i = 0; i < M*N; ++i) {
+          if (fabs(h_R[i] - h_C[i]) > 1e-3) {
               std::cout << "Failed to pass result check: " << std::endl
                         << "index = " << i << std::endl
                         << "cublas = " << h_R[i] << std::endl

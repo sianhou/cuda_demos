@@ -7,8 +7,8 @@
 
 template<int BLK>
 __global__ void sgemm(const float *a, const float *b, float *c, int M, int N, int K) {
-    int ty = blockIdx.y * blockDim.y + threadIdx.y;
-    int tx = blockIdx.x * blockDim.x + threadIdx.x;
+    int ty = blockIdx.y*blockDim.y + threadIdx.y;
+    int tx = blockIdx.x*blockDim.x + threadIdx.x;
     int lty = threadIdx.y;
     int ltx = threadIdx.x;
     int by = blockIdx.y;
@@ -17,25 +17,25 @@ __global__ void sgemm(const float *a, const float *b, float *c, int M, int N, in
     __shared__ float shared_a[BLK][BLK];
     __shared__ float shared_b[BLK][BLK];
 
-    const float *ptr_a = a + bx * BLK;
-    const float *ptr_b = b + by * BLK * K;
+    const float *ptr_a = a + bx*BLK;
+    const float *ptr_b = b + by*BLK*K;
     float sum = 0.f;
 
     for (int kk = 0; kk < K; kk += BLK) {
-        smA(ltx, lty) = ptr_a[ltx + lty * M];
-        smB(ltx, lty) = ptr_b[ltx + lty * K];
+        smA(ltx, lty) = ptr_a[ltx + lty*M];
+        smB(ltx, lty) = ptr_b[ltx + lty*K];
         __syncthreads();
 
 #pragma unroll
         for (int i = 0; i < BLK; ++i) {
-            sum += smA(ltx, i) * smB(i, lty);
+            sum += smA(ltx, i)*smB(i, lty);
         }
         __syncthreads();
 
-        ptr_a += BLK * M;
+        ptr_a += BLK*M;
         ptr_b += BLK;
     }
-    c[tx + ty * M] = sum;
+    c[tx + ty*M] = sum;
 }
 
 template<int BLK>
@@ -52,8 +52,8 @@ Result test_cugemm(int size, int blk, int niter) {
     block.y = blk;
     block.x = blk;
 
-    grid.y = (M + block.y - 1) / block.y;
-    grid.x = (N + block.x - 1) / block.x;
+    grid.y = (M + block.y - 1)/block.y;
+    grid.x = (N + block.x - 1)/block.x;
 
     std::cout << "M = N = K = " << size << std::endl;
     std::cout << "grid.z x grid.y x grid.x = " << grid.z << " x " << grid.y << " x " << grid.x << std::endl;
@@ -72,8 +72,8 @@ Result test_cugemm(int size, int blk, int niter) {
         sum_of_time += test.watch[i];
         sum_of_gfops += test.gflops[i];
     }
-    res.elapsed_cublas = sum_of_time / niter;
-    res.gflops_cublas = sum_of_gfops / niter;
+    res.elapsed_cublas = sum_of_time/niter;
+    res.gflops_cublas = sum_of_gfops/niter;
 
     // sgemm
     test.RunSgemm(grid, block, niter);
@@ -85,17 +85,17 @@ Result test_cugemm(int size, int blk, int niter) {
         sum_of_time += test.watch[i];
         sum_of_gfops += test.gflops[i];
     }
-    res.elapsed_sgemm = sum_of_time / niter;
-    res.gflops_sgemm = sum_of_gfops / niter;
+    res.elapsed_sgemm = sum_of_time/niter;
+    res.gflops_sgemm = sum_of_gfops/niter;
 
     return res;
 }
 
 int main() {
     Result res;
-    std::ofstream ofs("sgemm_v2.txt");
+    std::ofstream ofs("sgemm_v2_blk16x16.txt");
 
-    for (int s = 1024; s <= 1024; s += 32) {
+    for (int s = 64; s <= 4096; s *= 2) {
         res = test_cugemm<16>(s, 16, 10);
 
         ofs << std::setw(4) << res.size << " ";
